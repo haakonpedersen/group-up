@@ -33,7 +33,9 @@ export default function RoomPage() {
   const [systemMonthIndex, setSystemMonthIndex] = useState(0);
   const [systemYear, setSystemYear] = useState(2026);
 
-  // 1. POLLING EFFECT: Fetch data from database every 2 seconds for live cross-device syncing
+  // Modal / Quick-View Popover State
+  const [activeModalDate, setActiveModalDate] = useState<string | null>(null);
+
   useEffect(() => {
     const today = new Date();
     const realMonth = today.getMonth();
@@ -44,10 +46,8 @@ export default function RoomPage() {
     setSystemMonthIndex(realMonth);
     setSystemYear(realYear);
 
-    // Initial fetch
     fetchRoomData();
 
-    // Set up live sync interval
     const interval = setInterval(() => {
       fetchRoomData();
     }, 2000);
@@ -68,6 +68,62 @@ export default function RoomPage() {
       console.error("Error syncing data:", err);
     }
   };
+
+  const getNameColorClass = (name: string) => {
+    const colorCombos = [
+      "bg-amber-300 text-amber-950 border-amber-400",
+      "bg-cyan-300 text-cyan-950 border-cyan-400",
+      "bg-lime-300 text-lime-950 border-lime-400",
+      "bg-fuchsia-300 text-fuchsia-950 border-fuchsia-400",
+      "bg-orange-300 text-orange-950 border-orange-400",
+      "bg-yellow-300 text-yellow-950 border-yellow-400",
+      "bg-emerald-300 text-emerald-950 border-emerald-400",
+      "bg-sky-300 text-sky-950 border-sky-400",
+      "bg-pink-300 text-pink-950 border-pink-400",
+      "bg-violet-300 text-violet-950 border-violet-400",
+      "bg-teal-300 text-teal-950 border-teal-400",
+      "bg-rose-300 text-rose-950 border-rose-400"
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colorCombos.length;
+    return colorCombos[index];
+  };
+
+  // --- TOP DAYS CALCULATOR LOGIC ---
+  const getTopDays = () => {
+    // 1. Get total number of unique users who have participated in this room
+    const uniqueUsers = Array.from(new Set(availabilities.map((a) => a.name)));
+    const totalUsersCount = uniqueUsers.length;
+
+    if (totalUsersCount === 0) return [];
+
+    // 2. Count responses per date
+    const dateCounts: { [key: string]: number } = {};
+    availabilities.forEach((avail) => {
+      dateCounts[avail.date] = (dateCounts[avail.date] || 0) + 1;
+    });
+
+    // 3. Map to array, sort by highest count, and grab the top 3 options
+    return Object.keys(dateCounts)
+      .map((date) => ({
+        date,
+        count: dateCounts[date],
+        ratioText: `${dateCounts[date]}/${totalUsersCount} people free`,
+        formattedDate: new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3); // Top 3 days
+  };
+
+  const topDaysList = getTopDays();
 
   const months = [
     { name: "January", days: 31 }, { name: "February", days: 28 },
@@ -118,7 +174,6 @@ export default function RoomPage() {
       return;
     }
     const name = userName.trim();
-    // Optimistic UI updates
     const exists = availabilities.find((a) => a.name === name && a.date === date);
     if (exists) {
       setAvailabilities(availabilities.filter((a) => !(a.name === name && a.date === date)));
@@ -173,7 +228,6 @@ export default function RoomPage() {
   const isPrevDisabled = currentYear === systemYear && currentMonthIndex === systemMonthIndex;
   const isLookingAtFuture = currentYear > systemYear || currentMonthIndex > systemMonthIndex;
 
-  // Day renderer sub-logic used by both layouts
   const getDayDetails = (dayNum: number) => {
     const dateStr = `${currentYear}-${monthStr}-${String(dayNum).padStart(2, "0")}`;
     const globalAvails = availabilities.filter((a) => a.date === dateStr);
@@ -182,8 +236,14 @@ export default function RoomPage() {
     return { dateStr, globalAvails, amIAvailable, dayOfWeek };
   };
 
+  const modalAvailabilities = availabilities.filter((a) => a.date === activeModalDate);
+  const formattedModalDate = activeModalDate 
+    ? new Date(activeModalDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "";
+
   return (
-    <main className="min-h-screen bg-stone-50 p-4 md:p-6 text-slate-800">
+    <main className="min-h-screen bg-stone-50 p-4 md:p-6 text-slate-800 relative">
+      
       {/* Header */}
       <header className="mb-6 border-b border-stone-200 pb-5">
         <span className="text-xs font-bold tracking-widest text-cyan-600 uppercase">Group Up</span>
@@ -210,16 +270,45 @@ export default function RoomPage() {
         </div>
       </header>
 
-      {/* Profile Card */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 mb-6 max-w-md">
-        <label className="block text-sm font-semibold mb-1 text-cyan-900">Who are you?</label>
-        <input
-          type="text"
-          placeholder="Enter your name..."
-          value={userName}
-          onChange={(e) => setUserName(e.target.value)}
-          className="w-full px-3 py-2 border border-stone-300 rounded-md bg-stone-50 text-sm focus:ring-2 focus:ring-cyan-500"
-        />
+      {/* Setup Forms Row */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        {/* Profile Card */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 w-full md:max-w-xs flex-shrink-0">
+          <label className="block text-sm font-semibold mb-1 text-cyan-900">Who are you?</label>
+          <input
+            type="text"
+            placeholder="Enter your name..."
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            className="w-full px-3 py-2 border border-stone-300 rounded-md bg-stone-50 text-sm focus:ring-2 focus:ring-cyan-500"
+          />
+        </div>
+
+        {/* ⭐ TOP DAYS LEADERS PANEL */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex-1">
+          <h3 className="text-xs font-black uppercase tracking-wider text-cyan-800 mb-2">🔥 Best Match Days</h3>
+          {topDaysList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {topDaysList.map((day, idx) => (
+                <div 
+                  key={day.date} 
+                  onClick={() => setActiveModalDate(day.date)}
+                  className="cursor-pointer bg-amber-50/50 hover:bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 flex items-center justify-between transition group"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-amber-950 uppercase tracking-wide group-hover:text-amber-800">{day.formattedDate}</p>
+                    <p className="text-[11px] font-medium text-stone-400 mt-0.5">Rank #{idx + 1}</p>
+                  </div>
+                  <span className="bg-amber-500 text-amber-950 font-black text-xs px-2.5 py-1 rounded-lg shadow-sm whitespace-nowrap">
+                    {day.ratioText}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-400 font-medium py-2">No dates selected yet. Start clicking dates below to see the best options!</p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -247,7 +336,7 @@ export default function RoomPage() {
             </div>
           </div>
 
-          {/* 📱 MOBILE VIEW: Full-width stacked day list rows (Hidden on desktop) */}
+          {/* 📱 MOBILE VIEW */}
           <div className="sm:hidden space-y-2">
             {Array.from({ length: totalDays }, (_, i) => {
               const dayNum = i + 1;
@@ -277,11 +366,10 @@ export default function RoomPage() {
                     </button>
                   </div>
 
-                  {/* Clear text display for names on Mobile */}
                   {globalAvails.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1 border-t border-dashed border-stone-200">
                       {globalAvails.map((av, idx) => (
-                        <span key={idx} className="bg-sky-600 text-white text-xs px-2 py-0.5 rounded-md font-medium">
+                        <span key={idx} className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${getNameColorClass(av.name)}`}>
                           {av.name}
                         </span>
                       ))}
@@ -292,36 +380,67 @@ export default function RoomPage() {
             })}
           </div>
 
-          {/* 💻 DESKTOP VIEW: Standard Grid Grid (Hidden on phone screens) */}
+          {/* 💻 DESKTOP VIEW */}
           <div className="hidden sm:block">
             <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold mb-2 text-cyan-800">
               <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
             </div>
             <div className="grid grid-cols-7 gap-2">
               {blankDaysArray.map((_, index) => (
-                <div key={`blank-${index}`} className="border border-transparent bg-transparent min-h-[90px]" />
+                <div key={`blank-${index}`} className="border border-transparent bg-transparent min-h-[110px]" />
               ))}
               {Array.from({ length: totalDays }, (_, i) => {
                 const dayNum = i + 1;
                 const { dateStr, globalAvails, amIAvailable } = getDayDetails(dayNum);
+                
+                const shouldTruncate = globalAvails.length > 3;
+                const visibleAvails = shouldTruncate ? globalAvails.slice(0, 2) : globalAvails;
+                const hiddenCount = globalAvails.length - visibleAvails.length;
 
                 return (
-                  <button
+                  <div
                     key={dateStr}
-                    onClick={() => toggleAvailability(dateStr)}
-                    className={`p-2 border rounded-lg text-left flex flex-col justify-between transition min-h-[90px] group ${
-                      amIAvailable ? "bg-teal-50 border-teal-300 text-teal-900" : "border-stone-200 bg-stone-50 hover:bg-stone-100"
+                    className={`p-2 border rounded-lg text-left flex flex-col justify-between min-h-[110px] relative ${
+                      amIAvailable ? "bg-teal-50/30 border-teal-300" : "border-stone-200 bg-stone-50"
                     }`}
                   >
-                    <span className="font-bold text-xs">{dayNum}</span>
-                    <div className="flex flex-col gap-1 mt-1 w-full overflow-y-auto max-h-[60px]">
-                      {globalAvails.map((av, idx) => (
-                        <span key={idx} className="bg-sky-600 text-white text-[10px] px-1 py-0.5 rounded truncate text-center block font-medium">
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-bold text-xs text-stone-600">{dayNum}</span>
+                      {globalAvails.length > 0 && (
+                        <span className="bg-cyan-950 text-white font-black text-[10px] px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-sm">
+                          {globalAvails.length}
+                        </span>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => toggleAvailability(dateStr)}
+                      className="absolute inset-x-0 top-0 h-7 z-0 bg-transparent rounded-t-lg"
+                    />
+
+                    <div className="flex flex-col gap-1 mt-2 w-full z-10">
+                      {visibleAvails.map((av, idx) => (
+                        <span 
+                          key={idx} 
+                          className={`text-[10px] px-2 py-0.5 rounded truncate font-bold text-center border shadow-sm ${getNameColorClass(av.name)}`}
+                        >
                           {av.name}
                         </span>
                       ))}
+                      
+                      {shouldTruncate && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveModalDate(dateStr);
+                          }}
+                          className="bg-stone-800 hover:bg-stone-900 text-white text-[9px] font-black py-0.5 rounded text-center block tracking-tight shadow-sm transition transform hover:scale-[1.02]"
+                        >
+                          + {hiddenCount} more
+                        </button>
+                      )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -329,7 +448,7 @@ export default function RoomPage() {
 
         </div>
 
-        {/* Suggestions Box (Responsive column) */}
+        {/* Suggestions Box */}
         <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200 h-fit lg:sticky lg:top-6">
           <h2 className="text-lg md:text-xl font-bold mb-3 text-cyan-900">Activity Suggestions</h2>
           <form onSubmit={addSuggestion} className="space-y-2 mb-4">
@@ -365,6 +484,45 @@ export default function RoomPage() {
           </ul>
         </div>
       </div>
+
+      {/* OVERLAY POPUP MODAL COMPONENT */}
+      {activeModalDate && (
+        <div className="fixed inset-0 bg-stone-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-stone-200">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-black text-cyan-950">Who's Free?</h3>
+                <p className="text-xs text-stone-400 font-semibold">{formattedModalDate}</p>
+              </div>
+              <button 
+                onClick={() => setActiveModalDate(null)}
+                className="text-stone-400 hover:text-stone-600 font-bold text-sm bg-stone-100 hover:bg-stone-200 h-6 w-6 flex items-center justify-center rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto pr-1">
+              {modalAvailabilities.map((av, idx) => (
+                <div 
+                  key={idx} 
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold border text-center shadow-sm tracking-wide ${getNameColorClass(av.name)}`}
+                >
+                  {av.name}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setActiveModalDate(null)}
+              className="mt-5 w-full bg-stone-900 hover:bg-stone-950 text-white text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              Close Window
+            </button>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
