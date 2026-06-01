@@ -93,26 +93,22 @@ export default function RoomPage() {
     return colorCombos[index];
   };
 
-  // --- TOP DAYS CALCULATOR LOGIC ---
   const getTopDays = () => {
-    // 1. Get total number of unique users who have participated in this room
     const uniqueUsers = Array.from(new Set(availabilities.map((a) => a.name)));
     const totalUsersCount = uniqueUsers.length;
 
     if (totalUsersCount === 0) return [];
 
-    // 2. Count responses per date
     const dateCounts: { [key: string]: number } = {};
     availabilities.forEach((avail) => {
       dateCounts[avail.date] = (dateCounts[avail.date] || 0) + 1;
     });
 
-    // 3. Map to array, sort by highest count, and grab the top 3 options
     return Object.keys(dateCounts)
       .map((date) => ({
         date,
         count: dateCounts[date],
-        ratioText: `${dateCounts[date]}/${totalUsersCount} people free`,
+        ratioText: `${dateCounts[date]}/${totalUsersCount} free`,
         formattedDate: new Date(date + "T00:00:00").toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
@@ -120,7 +116,7 @@ export default function RoomPage() {
         }),
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3); // Top 3 days
+      .slice(0, 3);
   };
 
   const topDaysList = getTopDays();
@@ -242,10 +238,10 @@ export default function RoomPage() {
     : "";
 
   return (
-    <main className="min-h-screen bg-stone-50 p-4 md:p-6 text-slate-800 relative">
+    <main className="min-h-screen bg-stone-50 p-2 sm:p-6 text-slate-800 relative" suppressHydrationWarning>
       
       {/* Header */}
-      <header className="mb-6 border-b border-stone-200 pb-5">
+      <header className="mb-4 border-b border-stone-200 pb-4">
         <span className="text-xs font-bold tracking-widest text-cyan-600 uppercase">Group Up</span>
         <div className="flex items-center gap-3 mt-1">
           {isEditingTitle ? (
@@ -255,14 +251,14 @@ export default function RoomPage() {
               onChange={(e) => setRoomTitle(e.target.value)}
               onBlur={() => setIsEditingTitle(false)}
               onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
-              onChangeCapture={(e) => updateTitleInDb((e.target as HTMLInputElement).value)}
-              className="text-2xl md:text-3xl font-bold tracking-tight text-cyan-900 border-b border-cyan-500 bg-transparent focus:outline-none w-full max-w-xl"
+              onChangeCapture={(update) => updateTitleInDb((update.target as HTMLInputElement).value)}
+              className="text-2xl font-bold tracking-tight text-cyan-900 border-b border-cyan-500 bg-transparent focus:outline-none w-full"
               autoFocus
             />
           ) : (
             <h1 
               onClick={() => setIsEditingTitle(true)}
-              className="text-2xl md:text-3xl font-bold tracking-tight text-cyan-900 cursor-pointer hover:text-cyan-700 transition decoration-dotted underline decoration-stone-300"
+              className="text-2xl font-bold tracking-tight text-cyan-900 cursor-pointer hover:text-cyan-700 transition decoration-dotted underline decoration-stone-300"
             >
               {roomTitle}
             </h1>
@@ -271,7 +267,7 @@ export default function RoomPage() {
       </header>
 
       {/* Setup Forms Row */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
         {/* Profile Card */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 w-full md:max-w-xs flex-shrink-0">
           <label className="block text-sm font-semibold mb-1 text-cyan-900">Who are you?</label>
@@ -284,7 +280,7 @@ export default function RoomPage() {
           />
         </div>
 
-        {/* ⭐ TOP DAYS LEADERS PANEL */}
+        {/* TOP DAYS LEADERS PANEL */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex-1">
           <h3 className="text-xs font-black uppercase tracking-wider text-cyan-800 mb-2">🔥 Best Match Days</h3>
           {topDaysList.length > 0 ? (
@@ -293,164 +289,131 @@ export default function RoomPage() {
                 <div 
                   key={day.date} 
                   onClick={() => setActiveModalDate(day.date)}
-                  className="cursor-pointer bg-amber-50/50 hover:bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 flex items-center justify-between transition group"
+                  className="cursor-pointer bg-amber-50/50 hover:bg-amber-50 border border-amber-200/80 rounded-xl p-2 flex items-center justify-between transition group"
                 >
                   <div className="min-w-0">
                     <p className="text-xs font-black text-amber-950 uppercase tracking-wide group-hover:text-amber-800">{day.formattedDate}</p>
-                    <p className="text-[11px] font-medium text-stone-400 mt-0.5">Rank #{idx + 1}</p>
+                    <p className="text-[10px] font-medium text-stone-400">Rank #{idx + 1}</p>
                   </div>
-                  <span className="bg-amber-500 text-amber-950 font-black text-xs px-2.5 py-1 rounded-lg shadow-sm whitespace-nowrap">
+                  <span className="bg-amber-500 text-amber-950 font-black text-[11px] px-2 py-0.5 rounded-md shadow-sm">
                     {day.ratioText}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-stone-400 font-medium py-2">No dates selected yet. Start clicking dates below to see the best options!</p>
+            <p className="text-xs text-stone-400 font-medium py-1">No dates selected yet. Start choosing dates below!</p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Calendar UI Panel */}
-        <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Unified 7-Column Grid Calendar Panel */}
+        <div className="lg:col-span-3 bg-white p-2 sm:p-6 rounded-xl shadow-sm border border-stone-200">
           
           {/* Header Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-4 mb-4 gap-3">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold text-cyan-900">{activeMonth.name} {currentYear}</h2>
-            </div>
-            <div className="flex items-center gap-2 justify-between sm:justify-end w-full sm:w-auto">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-3 mb-3 gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold text-cyan-900">{activeMonth.name} {currentYear}</h2>
+            <div className="flex items-center gap-1.5">
               {isLookingAtFuture && (
                 <button
                   onClick={() => { setCurrentMonthIndex(systemMonthIndex); setCurrentYear(systemYear); }}
-                  className="px-2.5 py-1.5 text-xs font-semibold bg-cyan-50 text-cyan-800 rounded-lg border border-cyan-200"
+                  className="px-2 py-1 text-[11px] font-bold bg-cyan-50 text-cyan-800 rounded-md border border-cyan-200"
                 >
-                  Current Month
+                  Current
                 </button>
               )}
-              <div className="flex gap-1.5">
-                <button onClick={prevMonth} disabled={isPrevDisabled} className="px-3 py-1.5 border border-stone-200 rounded-lg text-xs md:text-sm bg-stone-50 disabled:opacity-30">&larr; Prev</button>
-                <button onClick={nextMonth} className="px-3 py-1.5 border border-stone-200 rounded-lg text-xs md:text-sm bg-stone-50">Next &rarr;</button>
-              </div>
+              <button onClick={prevMonth} disabled={isPrevDisabled} className="px-2.5 py-1 border border-stone-200 rounded-md text-xs bg-stone-50 disabled:opacity-30">&larr;</button>
+              <button onClick={nextMonth} className="px-2.5 py-1 border border-stone-200 rounded-md text-xs bg-stone-50">&rarr;</button>
             </div>
           </div>
 
-          {/* 📱 MOBILE VIEW */}
-          <div className="sm:hidden space-y-2">
+          {/* Unified 7-Column Day Labels */}
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-black mb-1 text-cyan-800 uppercase tracking-wider">
+            <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+          </div>
+
+          {/* Unified Grid Layout */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {blankDaysArray.map((_, index) => (
+              <div key={`blank-${index}`} className="border border-transparent bg-transparent min-h-[72px] sm:min-h-[110px]" />
+            ))}
             {Array.from({ length: totalDays }, (_, i) => {
               const dayNum = i + 1;
-              const { dateStr, globalAvails, amIAvailable, dayOfWeek } = getDayDetails(dayNum);
+              const { dateStr, globalAvails, amIAvailable } = getDayDetails(dayNum);
+              
+              // Mobile handles limits tighter than desktops to optimize real estate squares
+              const shouldTruncate = globalAvails.length > 2;
+              const visibleAvails = shouldTruncate ? globalAvails.slice(0, 1) : globalAvails;
+              const hiddenCount = globalAvails.length - visibleAvails.length;
 
               return (
-                <div 
-                  key={`mobile-${dateStr}`}
-                  className={`p-3 border rounded-xl flex flex-col gap-2 transition ${
-                    amIAvailable ? "bg-teal-50/60 border-teal-300" : "border-stone-100 bg-stone-50/50"
+                <div
+                  key={dateStr}
+                  className={`p-1 sm:p-2 border rounded-md sm:rounded-lg text-left flex flex-col justify-between min-h-[72px] sm:min-h-[110px] relative ${
+                    amIAvailable ? "bg-teal-50/40 border-teal-300" : "border-stone-200 bg-stone-50"
                   }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-stone-700 bg-white shadow-sm border border-stone-200/60 h-7 w-7 flex items-center justify-center rounded-lg">{dayNum}</span>
-                      <span className="text-xs font-bold uppercase tracking-wider text-stone-400">{dayOfWeek}</span>
-                    </div>
-                    <button
-                      onClick={() => toggleAvailability(dateStr)}
-                      className={`text-xs px-3 py-1 rounded-full font-semibold transition ${
-                        amIAvailable 
-                          ? "bg-teal-600 text-white shadow-sm" 
-                          : "bg-white border border-stone-300 text-stone-600"
-                      }`}
-                    >
-                      {amIAvailable ? "✓ Available" : "+ I'm Free"}
-                    </button>
+                  {/* Square Header Row */}
+                  <div className="flex justify-between items-center w-full">
+                    <span className="font-extrabold text-xs text-stone-600">{dayNum}</span>
+                    {globalAvails.length > 0 && (
+                      <span className="bg-cyan-950 text-white font-black text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full min-w-[14px] text-center shadow-sm">
+                        {globalAvails.length}
+                      </span>
+                    )}
                   </div>
 
-                  {globalAvails.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-dashed border-stone-200">
-                      {globalAvails.map((av, idx) => (
-                        <span key={idx} className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${getNameColorClass(av.name)}`}>
+                  {/* Date Toggle Hitbox */}
+                  <button 
+                    onClick={() => toggleAvailability(dateStr)}
+                    className="absolute inset-x-0 top-0 h-6 sm:h-8 z-0 bg-transparent rounded-t-md"
+                  />
+
+                  {/* Adaptive Stacked Labels Container */}
+                  <div className="flex flex-col gap-0.5 sm:gap-1 mt-1 w-full z-10">
+                    {/* Desktop View List Layer */}
+                    <div className="hidden sm:flex flex-col gap-1">
+                      {(globalAvails.length > 3 ? globalAvails.slice(0, 2) : globalAvails).map((av, idx) => (
+                        <span key={`desk-${idx}`} className={`text-[10px] px-2 py-0.5 rounded truncate font-bold text-center border shadow-sm ${getNameColorClass(av.name)}`}>
                           {av.name}
                         </span>
                       ))}
+                      {globalAvails.length > 3 && (
+                        <button onClick={() => setActiveModalDate(dateStr)} className="bg-stone-800 text-white text-[9px] font-black py-0.5 rounded text-center block shadow-sm">
+                          + {globalAvails.length - 2} more
+                        </button>
+                      )}
                     </div>
-                  )}
+
+                    {/* Mobile View Layer (Maximized space configuration) */}
+                    <div className="sm:hidden flex flex-col gap-0.5">
+                      {visibleAvails.map((av, idx) => (
+                        <span key={`mob-${idx}`} className={`text-[9px] px-0.5 py-0.5 rounded truncate font-black tracking-tighter text-center border block shadow-xs leading-none ${getNameColorClass(av.name)}`}>
+                          {av.name}
+                        </span>
+                      ))}
+                      {shouldTruncate && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setActiveModalDate(dateStr); }} 
+                          className="bg-stone-800 text-white text-[8px] font-black py-0.5 rounded text-center block tracking-tighter leading-none"
+                        >
+                          +{hiddenCount}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
               );
             })}
           </div>
 
-          {/* 💻 DESKTOP VIEW */}
-          <div className="hidden sm:block">
-            <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold mb-2 text-cyan-800">
-              <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {blankDaysArray.map((_, index) => (
-                <div key={`blank-${index}`} className="border border-transparent bg-transparent min-h-[110px]" />
-              ))}
-              {Array.from({ length: totalDays }, (_, i) => {
-                const dayNum = i + 1;
-                const { dateStr, globalAvails, amIAvailable } = getDayDetails(dayNum);
-                
-                const shouldTruncate = globalAvails.length > 3;
-                const visibleAvails = shouldTruncate ? globalAvails.slice(0, 2) : globalAvails;
-                const hiddenCount = globalAvails.length - visibleAvails.length;
-
-                return (
-                  <div
-                    key={dateStr}
-                    className={`p-2 border rounded-lg text-left flex flex-col justify-between min-h-[110px] relative ${
-                      amIAvailable ? "bg-teal-50/30 border-teal-300" : "border-stone-200 bg-stone-50"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center w-full">
-                      <span className="font-bold text-xs text-stone-600">{dayNum}</span>
-                      {globalAvails.length > 0 && (
-                        <span className="bg-cyan-950 text-white font-black text-[10px] px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-sm">
-                          {globalAvails.length}
-                        </span>
-                      )}
-                    </div>
-
-                    <button 
-                      onClick={() => toggleAvailability(dateStr)}
-                      className="absolute inset-x-0 top-0 h-7 z-0 bg-transparent rounded-t-lg"
-                    />
-
-                    <div className="flex flex-col gap-1 mt-2 w-full z-10">
-                      {visibleAvails.map((av, idx) => (
-                        <span 
-                          key={idx} 
-                          className={`text-[10px] px-2 py-0.5 rounded truncate font-bold text-center border shadow-sm ${getNameColorClass(av.name)}`}
-                        >
-                          {av.name}
-                        </span>
-                      ))}
-                      
-                      {shouldTruncate && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveModalDate(dateStr);
-                          }}
-                          className="bg-stone-800 hover:bg-stone-900 text-white text-[9px] font-black py-0.5 rounded text-center block tracking-tight shadow-sm transition transform hover:scale-[1.02]"
-                        >
-                          + {hiddenCount} more
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
         </div>
 
         {/* Suggestions Box */}
-        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200 h-fit lg:sticky lg:top-6">
-          <h2 className="text-lg md:text-xl font-bold mb-3 text-cyan-900">Activity Suggestions</h2>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 h-fit lg:sticky lg:top-6">
+          <h2 className="text-lg font-bold mb-3 text-cyan-900">Activity Suggestions</h2>
           <form onSubmit={addSuggestion} className="space-y-2 mb-4">
             <input
               type="text"
@@ -461,7 +424,7 @@ export default function RoomPage() {
             />
             <button type="submit" className="w-full bg-cyan-700 text-white font-semibold py-2 rounded-md text-sm">Add</button>
           </form>
-          <ul className="space-y-2 max-h-[300px] overflow-y-auto">
+          <ul className="space-y-2 max-h-[240px] overflow-y-auto">
             {sortedSuggestions.map((s) => {
               const userHasLiked = s.likedBy.includes(userName.trim());
               return (
@@ -494,29 +457,18 @@ export default function RoomPage() {
                 <h3 className="text-lg font-black text-cyan-950">Who's Free?</h3>
                 <p className="text-xs text-stone-400 font-semibold">{formattedModalDate}</p>
               </div>
-              <button 
-                onClick={() => setActiveModalDate(null)}
-                className="text-stone-400 hover:text-stone-600 font-bold text-sm bg-stone-100 hover:bg-stone-200 h-6 w-6 flex items-center justify-center rounded-full"
-              >
-                ✕
-              </button>
+              <button onClick={() => setActiveModalDate(null)} className="text-stone-400 hover:text-stone-600 font-bold text-sm bg-stone-100 hover:bg-stone-200 h-6 w-6 flex items-center justify-center rounded-full">✕</button>
             </div>
             
             <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto pr-1">
               {modalAvailabilities.map((av, idx) => (
-                <div 
-                  key={idx} 
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold border text-center shadow-sm tracking-wide ${getNameColorClass(av.name)}`}
-                >
+                <div key={idx} className={`px-3 py-2 rounded-xl text-xs font-extrabold border text-center shadow-sm tracking-wide ${getNameColorClass(av.name)}`}>
                   {av.name}
                 </div>
               ))}
             </div>
 
-            <button
-              onClick={() => setActiveModalDate(null)}
-              className="mt-5 w-full bg-stone-900 hover:bg-stone-950 text-white text-xs font-bold py-2.5 rounded-xl transition"
-            >
+            <button onClick={() => setActiveModalDate(null)} className="mt-5 w-full bg-stone-900 hover:bg-stone-950 text-white text-xs font-bold py-2.5 rounded-xl transition">
               Close Window
             </button>
           </div>
