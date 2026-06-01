@@ -4,10 +4,10 @@ import { sql } from "@vercel/postgres";
 export async function POST(request: Request) {
   const { roomId, name, date } = await request.json();
 
-  // Check if it exists to delete, otherwise append row
   const existing = await sql`SELECT id FROM availability WHERE room_id = ${roomId} AND name = ${name} AND date = ${date};`;
 
-  if (existing.rowCount > 0) {
+  // Fix: Use rows.length instead of rowCount
+  if (existing.rows && existing.rows.length > 0) {
     await sql`DELETE FROM availability WHERE id = ${existing.rows[0].id};`;
   } else {
     await sql`INSERT INTO availability (room_id, name, date) VALUES (${roomId}, ${name}, ${date});`;

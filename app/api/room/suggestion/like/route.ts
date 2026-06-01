@@ -5,7 +5,9 @@ export async function POST(request: Request) {
   const { suggestionId, name } = await request.json();
 
   const item = await sql`SELECT liked_by FROM suggestions WHERE id = ${suggestionId};`;
-  if (item.rowCount === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  
+  // Fix: Use rows.length instead of rowCount here too
+  if (!item.rows || item.rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   let likedBy: string[] = JSON.parse(item.rows[0].liked_by || "[]");
 
