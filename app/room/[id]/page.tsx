@@ -47,6 +47,7 @@ export default function RoomPage() {
     setSystemMonthIndex(realMonth);
     setSystemYear(realYear);
 
+    // Initial load immediately executes the title and matrix checks
     fetchRoomData();
 
     const interval = setInterval(() => {
@@ -59,34 +60,57 @@ export default function RoomPage() {
   const fetchRoomData = async () => {
     if (!roomId) return;
     try {
+      // 1. Fetch main grid room data (availabilities, suggestions)
       const res = await fetch(`/api/room?id=${roomId}`);
       if (res.ok) {
         const data = await res.json();
         
-        // Update Title and handle local history sync
-        if (data.title) {
+        // If your main GET endpoint returns the title properties natively, parse it here:
+        if (data && data.title) {
           setRoomTitle(data.title);
           document.title = `Group Up | ${data.title}`;
-
-          // --- AUTO-TRACK VISITED ROOMS FOR HOME LOGS ---
-          if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("groupup_recent_rooms");
-            let history = saved ? JSON.parse(saved) : [];
-            history = [
-              { id: roomId, title: data.title, visitedAt: Date.now() },
-              ...history.filter((r: any) => r.id !== roomId)
-            ].slice(0, 5); 
-            localStorage.setItem("groupup_recent_rooms", JSON.stringify(history));
-          }
-        } else {
-          setRoomTitle(`Plan: ${roomId.toUpperCase()}`);
+          syncLocalHistory(data.title);
         }
         
         if (data.availabilities) setAvailabilities(data.availabilities);
         if (data.suggestions) setSuggestions(data.suggestions);
       }
+
+      // 2. 🌟 BACKUP TITLE SAFETY VALVE:
+      // If the primary route didn't provide a title, ping the dedicated title endpoint directly
+      if (roomTitle === "Loading Plan..." || roomTitle.startsWith("Plan:")) {
+        const titleRes = await fetch(`/api/room/title?roomId=${roomId}`);
+        if (titleRes.ok) {
+          const titleData = await titleRes.json();
+          if (titleData && titleData.title) {
+            setRoomTitle(titleData.title);
+            document.title = `Group Up | ${titleData.title}`;
+            syncLocalHistory(titleData.title);
+          } else {
+            // Fall back cleanly to the invite code name format if database cell is empty
+            setRoomTitle(`Plan: ${roomId.toUpperCase()}`);
+          }
+        }
+      }
     } catch (err) {
-      console.error("Error syncing data:", err);
+      console.error("Error syncing calendar page data:", err);
+    }
+  };
+
+  // Keep user browser local storage dashboard records up to date
+  const syncLocalHistory = (confirmedTitle: string) => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("groupup_recent_rooms");
+        let history = saved ? JSON.parse(saved) : [];
+        history = [
+          { id: roomId, title: confirmedTitle, visitedAt: Date.now() },
+          ...history.filter((r: any) => r.id !== roomId)
+        ].slice(0, 5); 
+        localStorage.setItem("groupup_recent_rooms", JSON.stringify(history));
+      } catch (e) {
+        console.error("Failed history sync", e);
+      }
     }
   };
 
@@ -300,7 +324,6 @@ export default function RoomPage() {
 
         {/* Action Controls Side Stack */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {/* 🏠 NEW HOME LINK BUTTON */}
           <button
             onClick={() => router.push("/")}
             className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold border border-stone-300 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5"
