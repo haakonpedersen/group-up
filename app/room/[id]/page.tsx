@@ -60,7 +60,20 @@ export default function RoomPage() {
       const res = await fetch(`/api/room?id=${roomId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.title) setRoomTitle(data.title);
+        if (data.title) {
+          setRoomTitle(data.title);
+
+          // --- BONUS STEP: AUTO-TRACK VISITED ROOMS FOR HOME LOGS ---
+          if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("groupup_recent_rooms");
+            let history = saved ? JSON.parse(saved) : [];
+            history = [
+              { id: roomId, title: data.title, visitedAt: Date.now() },
+              ...history.filter((r: any) => r.id !== roomId)
+            ].slice(0, 5); // Remember up to 5 history entries
+            localStorage.setItem("groupup_recent_rooms", JSON.stringify(history));
+          }
+        }
         if (data.availabilities) setAvailabilities(data.availabilities);
         if (data.suggestions) setSuggestions(data.suggestions);
       }
@@ -342,7 +355,6 @@ export default function RoomPage() {
               const dayNum = i + 1;
               const { dateStr, globalAvails, amIAvailable } = getDayDetails(dayNum);
               
-              // Mobile handles limits tighter than desktops to optimize real estate squares
               const shouldTruncate = globalAvails.length > 2;
               const visibleAvails = shouldTruncate ? globalAvails.slice(0, 1) : globalAvails;
               const hiddenCount = globalAvails.length - visibleAvails.length;
