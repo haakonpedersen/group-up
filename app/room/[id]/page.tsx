@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 interface Availability {
   name: string;
@@ -17,7 +17,8 @@ interface Suggestion {
 
 export default function RoomPage() {
   const params = useParams();
-  const roomId = params.id as string;
+  const router = useRouter();
+  const roomId = params?.id as string;
 
   // App Data States
   const [roomTitle, setRoomTitle] = useState("Loading Plan...");
@@ -56,24 +57,31 @@ export default function RoomPage() {
   }, [roomId]);
 
   const fetchRoomData = async () => {
+    if (!roomId) return;
     try {
       const res = await fetch(`/api/room?id=${roomId}`);
       if (res.ok) {
         const data = await res.json();
+        
+        // Update Title and handle local history sync
         if (data.title) {
           setRoomTitle(data.title);
+          document.title = `Group Up | ${data.title}`;
 
-          // --- BONUS STEP: AUTO-TRACK VISITED ROOMS FOR HOME LOGS ---
+          // --- AUTO-TRACK VISITED ROOMS FOR HOME LOGS ---
           if (typeof window !== "undefined") {
             const saved = localStorage.getItem("groupup_recent_rooms");
             let history = saved ? JSON.parse(saved) : [];
             history = [
               { id: roomId, title: data.title, visitedAt: Date.now() },
               ...history.filter((r: any) => r.id !== roomId)
-            ].slice(0, 5); // Remember up to 5 history entries
+            ].slice(0, 5); 
             localStorage.setItem("groupup_recent_rooms", JSON.stringify(history));
           }
+        } else {
+          setRoomTitle(`Plan: ${roomId.toUpperCase()}`);
         }
+        
         if (data.availabilities) setAvailabilities(data.availabilities);
         if (data.suggestions) setSuggestions(data.suggestions);
       }
@@ -222,6 +230,13 @@ export default function RoomPage() {
     fetchRoomData();
   };
 
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Shareable invite link copied to clipboard!");
+    }
+  };
+
   const activeMonth = months[currentMonthIndex];
   const monthStr = String(currentMonthIndex + 1).padStart(2, "0");
   const totalDays = getDaysInMonth(currentMonthIndex, currentYear);
@@ -253,29 +268,52 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen bg-stone-50 p-2 sm:p-6 text-slate-800 relative" suppressHydrationWarning>
       
-      {/* Header */}
-      <header className="mb-4 border-b border-stone-200 pb-4">
-        <span className="text-xs font-bold tracking-widest text-cyan-600 uppercase">Group Up</span>
-        <div className="flex items-center gap-3 mt-1">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={roomTitle}
-              onChange={(e) => setRoomTitle(e.target.value)}
-              onBlur={() => setIsEditingTitle(false)}
-              onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
-              onChangeCapture={(update) => updateTitleInDb((update.target as HTMLInputElement).value)}
-              className="text-2xl font-bold tracking-tight text-cyan-900 border-b border-cyan-500 bg-transparent focus:outline-none w-full"
-              autoFocus
-            />
-          ) : (
-            <h1 
-              onClick={() => setIsEditingTitle(true)}
-              className="text-2xl font-bold tracking-tight text-cyan-900 cursor-pointer hover:text-cyan-700 transition decoration-dotted underline decoration-stone-300"
-            >
-              {roomTitle}
-            </h1>
-          )}
+      {/* Header Container */}
+      <header className="mb-4 border-b border-stone-200 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <span className="text-xs font-bold tracking-widest text-cyan-600 uppercase">Group Up</span>
+          <div className="flex items-center gap-3 mt-1">
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={roomTitle}
+                onChange={(e) => setRoomTitle(e.target.value)}
+                onBlur={() => setIsEditingTitle(false)}
+                onKeyDown={(e) => e.key === "Enter" && setIsEditingTitle(false)}
+                onChangeCapture={(update) => updateTitleInDb((update.target as HTMLInputElement).value)}
+                className="text-2xl font-bold tracking-tight text-cyan-900 border-b border-cyan-500 bg-transparent focus:outline-none w-full"
+                autoFocus
+              />
+            ) : (
+              <h1 
+                onClick={() => setIsEditingTitle(true)}
+                className="text-2xl font-bold tracking-tight text-cyan-900 cursor-pointer hover:text-cyan-700 transition decoration-dotted underline decoration-stone-300"
+              >
+                {roomTitle}
+              </h1>
+            )}
+          </div>
+          <p className="text-xs font-bold uppercase tracking-wider text-stone-400 mt-1">
+            Calendar Code: <span className="text-cyan-800 bg-cyan-50 border border-cyan-200/60 px-1.5 py-0.5 rounded font-mono select-all">{roomId}</span>
+          </p>
+        </div>
+
+        {/* Action Controls Side Stack */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* 🏠 NEW HOME LINK BUTTON */}
+          <button
+            onClick={() => router.push("/")}
+            className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold border border-stone-300 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5"
+          >
+            <span>🏠</span> Home
+          </button>
+
+          <button
+            onClick={handleCopyLink}
+            className="px-4 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-700 hover:bg-stone-50 transition shadow-xs flex items-center gap-2"
+          >
+            <span>📋</span> Copy Invite Link
+          </button>
         </div>
       </header>
 
